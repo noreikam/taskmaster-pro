@@ -13,6 +13,8 @@ var createTask = function(taskText, taskDate, taskList) {
   // append span and p element to parent li
   taskLi.append(taskSpan, taskP);
 
+  //check due date
+  auditTask(taskLi);
 
   // append to ul list on the page
   $("#list-" + taskList).append(taskLi);
@@ -93,15 +95,22 @@ $(".list-group").on("click", "span", function() {
     .val(date);
 
   $(this).replaceWith(dateInput);
+
+dateInput.datepicker({
+  //minDate: 0,
+  onClose: function() {
+    $(this).trigger("change");
+  }
+});
+
   dateInput.trigger("focus");
 });
 
 // save new due date
-$(".list-group").on("blur", "input", function() {
-  // get text, status and index
+$(".list-group").on("change", "input[type='text']", function() {
+  // get date, status and index
   var date = $(this)
-    .val()
-    .trim();
+    .val();
   var status = $(this)
     .closest(".list-group")
     .attr("id")
@@ -110,15 +119,17 @@ $(".list-group").on("blur", "input", function() {
     .closest(".list-group-item")
     .index();
   
-  // update text and save
+  // update date and save
   tasks[status][index].date = date;
   saveTasks();
 
-  // revert textarea to p
+  // revert input to span
   var taskSpan = $("<span>")
     .addClass("badge badge-primary badge-pill")
     .text(date);
   $(this).replaceWith(taskSpan);
+
+  auditTask($(taskSpan).closest(".list-group-item"));
 
 });
 
@@ -205,6 +216,30 @@ $(".card .list-group").sortable({
   }
 });
 
+// audit tasks by due date
+var auditTask = function(taskEl) {
+  // get date from taskel
+  var date = $(taskEl).find("span").text().trim();
+  console.log(date);
+
+  // convert date from string to moment object at 5 pm
+  var time = moment(date, "L").set("hour", 17);
+
+  // remove old classes
+  $(taskEl).removeClass("list-group-item-warning list-group-item-danger");
+  
+  // apply new class if near/over due date
+  if(moment().isAfter(time)) {
+    $(taskEl).addClass("list-group-item-danger");
+  }
+  else if (Math.abs(moment().diff(time, "days")) <= 2) {
+    
+    $(taskEl).addClass("list-group-item-warning");
+  }
+  
+};
+
+// delete by dragging to trash
 $("#trash").droppable({
   accept: ".card .list-group-item",
   tolerance: "touch",
@@ -218,6 +253,10 @@ $("#trash").droppable({
   out: function(event, ui) {
     console.log("out trash");
   }
+});
+
+$("#modalDueDate").datepicker({
+  //minDate: 0
 });
 
 // remove all tasks
